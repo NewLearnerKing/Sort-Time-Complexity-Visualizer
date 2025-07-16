@@ -151,7 +151,7 @@ def mergeSort(arr):
     totalTime = time.perf_counter() - strTime
     return totalTime
 
-def calculate(min_size=100, max_size=2101, step=200, trials=1):
+def calculate(min_size=100, max_size=2101, step=200, trials=5):
     """
     Calculates the time taken by different sorting algorithms on a large array.
     Returns:
