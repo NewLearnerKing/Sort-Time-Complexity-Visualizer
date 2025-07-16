@@ -1,13 +1,25 @@
+# Copyright (c) 2025 Abhishek Patel
+# Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+import argparse
+
+PLOT_DIR = "plots"
+os.makedirs(PLOT_DIR, exist_ok=True)
 
 def createArray(n):
-    """Generate arrays for average, best, and worst case scenarios."""
-    averg = np.random.randint(0, 1000, n)
-    best = np.sort(averg)
-    worst = best[::-1]
-    return averg, best, worst
+    if n <= 0:
+        raise ValueError("Array size must be positive")
+    try:
+        avg = np.random.randint(0, 1000, n)
+        best = np.sort(avg)
+        worst = best[::-1]
+        return avg, best, worst
+    except MemoryError:
+        raise MemoryError(f"Cannot allocate array of size {n}")
 
 
 def bubbleSort(arr):
@@ -76,7 +88,7 @@ def selectionSort(arr):
     totalTime = time.perf_counter() - strTime
     return totalTime
 
-def calculate():
+def calculate(min_size=100, max_size=2101, step=200, trials=1):
     """
     Calculates the time taken by different sorting algorithms on a large array.
     
@@ -93,85 +105,78 @@ def calculate():
     sListBest = []
     sListWorst = []
     numList = []
-    i = 100
-    while i<=2100:
-        average, best, worst = createArray(i)
-        bTime = bubbleSort(average.copy())
-        bTime2 = bubbleSort(best.copy())
-        bTime3 = bubbleSort(worst.copy())
-        iTime = insertionSort(average.copy())
-        iTime2 = insertionSort(best.copy())
-        iTime3 = insertionSort(worst.copy())
-        sTime = selectionSort(average.copy())
-        sTime2 = selectionSort(best.copy())
-        sTime3 = selectionSort(worst.copy())
-        print(f"Array size: {i}")
-        print(f"Bubble sort time: {bTime} seconds")
-        print(f"Insertion sort time: {iTime} seconds")
-        print(f"Selection sort time: {sTime} seconds")
-        print()
-        bListAvg.append(bTime)
-        bListBest.append(bTime2)
-        bListWorst.append(bTime3)
-        iListAvg.append(iTime)
-        iListBest.append(iTime2)
-        iListWorst.append(iTime3)
-        sListAvg.append(sTime)
-        sListBest.append(sTime2)
-        sListWorst.append(sTime3)
+    for i in range(min_size, max_size, step):
+        b_times, b_times_best, b_times_worst = [], [], []
+        i_times, i_times_best, i_times_worst = [], [], []
+        s_times, s_times_best, s_times_worst = [], [], []
+        for _ in range(trials):
+            avg, best, worst = createArray(i)
+            b_times.append(bubbleSort(avg.copy()))
+            b_times_best.append(bubbleSort(best.copy()))
+            b_times_worst.append(bubbleSort(worst.copy()))
+            i_times.append(insertionSort(avg.copy()))
+            i_times_best.append(insertionSort(best.copy()))
+            i_times_worst.append(insertionSort(worst.copy()))
+            s_times.append(selectionSort(avg.copy()))
+            s_times_best.append(selectionSort(best.copy()))
+            s_times_worst.append(selectionSort(worst.copy()))
+        bListAvg.append(sum(b_times) / trials)
+        bListBest.append(sum(b_times_best) / trials)
+        bListWorst.append(sum(b_times_worst) / trials)
+        iListAvg.append(sum(i_times) / trials)
+        iListBest.append(sum(i_times_best) / trials)
+        iListWorst.append(sum(i_times_worst) / trials)
+        sListAvg.append(sum(s_times) / trials)
+        sListBest.append(sum(s_times_best) / trials)
+        sListWorst.append(sum(s_times_worst) / trials)
         numList.append(i)
-        i = i+200
+    print(f"{'Array Size':<15} {'Bubble Sort':<15} {'Insertion Sort':<15} {'Selection Sort':<15}")
+    print("-" * 60)
+    for i, (b, i_, s) in enumerate(zip(bListAvg, iListAvg, sListAvg)):
+        print(f"{numList[i]:<15} {b:<15.6f} {i_:<15.6f} {s:<15.6f}")
     return bListAvg, bListBest, bListWorst, iListAvg, iListBest, iListWorst, sListAvg, sListBest, sListWorst, numList
         
+          
+def graphPlot(bListAvg, bListBest, bListWorst, iListAvg, iListBest, iListWorst, sListAvg, sListBest, sListWorst, numList, log_scale=False):
+    fig, axs = plt.subplots(3, 1, figsize=(10, 12))
+    cases = [("Average Case", bListAvg, iListAvg, sListAvg),
+             ("Best Case", bListBest, iListBest, sListBest),
+             ("Worst Case", bListWorst, iListWorst, sListWorst)]
+    
+    for i, (title, bData, iData, sData) in enumerate(cases):
+        axs[i].plot(numList, bData, label='Bubble Sort', color='blue')
+        axs[i].plot(numList, iData, label='Insertion Sort', color='green')
+        axs[i].plot(numList, sData, label='Selection Sort', color='red')
+        axs[i].set_title(f'{title} Time Complexity')
+        axs[i].set_xlabel('Array Size')
+        axs[i].set_ylabel('Time (seconds)')
+        axs[i].grid(True, which="both", ls="--", alpha=0.5)
+        if log_scale:
+            axs[i].set_yscale('log')
+        axs[i].legend()
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(PLOT_DIR, f"compare{'_log' if log_scale else ''}.png"))
+    plt.show()
+    plt.close()
+           
 
-def graphPlot(bListAvg, bListBest, bListWorst, iListAvg, iListBest, iListWorst, sListAvg, sListBest, sListWorst, numList):
-    """
-    This function plots the time taken by each sorting algorithm for different array sizes.
-
-    Args:
-        bListAvg (list): List of time taken for bubble sort for random numbers
-        bListBest (list): List of time taken for bubble sort for ascending numbers
-        bListWorst (list): List of time taken for bubble sort for descending numbers
-        iListAvg (list): List of time taken for insertion sort for random numbers
-        iListBest (list): List of time taken for insertion sort for ascending numbers
-        iListWorst (list): List of time taken for insertion sort for descending numbers
-        sListAvg (list): List of time taken for selection sort for random numbers
-        sListBest (list): List of time taken for selection sort for ascending numbers
-        sListWorst (list): List of time taken for selection sort for descending numbers
-        numList (list): List of numbers for size of arrays
-    """
-    plt.figure(figsize=(10,6))
-    plt.plot(numList, bListAvg, label='Bubble sort average time')
-    plt.plot(numList, iListAvg, label='Insertion sort average time')
-    plt.plot(numList, sListAvg, label='Selection sort average time')
-    plt.title('Average time complexity of sorting algorithms')
-    plt.xlabel('Array size')
-    plt.ylabel('Time (seconds)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-    plt.figure(figsize=(10,6))
-    plt.plot(numList, bListBest, label='Bubble sort best time')
-    plt.plot(numList, iListBest, label='Insertion sort best time')
-    plt.plot(numList, sListBest, label='Selection sort best time')
-    plt.title('Best time complexity of sorting algorithms')
-    plt.xlabel('Array size')
-    plt.ylabel('Time (seconds)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-    plt.figure(figsize=(10,6))
-    plt.plot(numList, bListWorst, label='Bubble sort worst time')
-    plt.plot(numList, iListWorst, label='Insertion sort worst time')
-    plt.plot(numList, sListWorst, label='Selection sort worst time')
-    plt.title('Worst time complexity of sorting algorithms')
-    plt.xlabel('Array size')
-    plt.ylabel('Time (seconds)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-        
+def parse_args():
+    parser = argparse.ArgumentParser(description="Compare sorting algorithm performance.")
+    parser.add_argument("--min-size", type=int, default=100, help="Minimum array size")
+    parser.add_argument("--max-size", type=int, default=2100, help="Maximum array size")
+    parser.add_argument("--step", type=int, default=200, help="Step size for array sizes")
+    parser.add_argument("--trials", type=int, default=5, help="Number of trials for averaging")
+    parser.add_argument("--log-scale", action="store_true", help="Use logarithmic scale for plots")
+    args = parser.parse_args()
+    if args.min_size <= 0 or args.max_size <= 0 or args.step <= 0 or args.trials <= 0:
+        parser.error("All arguments must be positive")
+    if args.min_size >= args.max_size:
+        parser.error("min-size must be less than max-size")
+    return args
 
 if __name__ == "__main__":
-    bListAvg, bListBest, bListWorst, iListAvg, iListBest, iListWorst, sListAvg, sListBest, sListWorst, numList = calculate()
-    graphPlot(bListAvg, bListBest, bListWorst, iListAvg, iListBest, iListWorst, sListAvg, sListBest, sListWorst, numList)
+    print("Running...")
+    args = parse_args()
+    bListAvg, bListBest, bListWorst, iListAvg, iListBest, iListWorst, sListAvg, sListBest, sListWorst, numList = calculate(args.min_size, args.max_size, args.step, args.trials)
+    graphPlot(bListAvg, bListBest, bListWorst, iListAvg, iListBest, iListWorst, sListAvg, sListBest, sListWorst, numList, args.log_scale)
